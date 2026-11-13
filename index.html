@@ -29,7 +29,7 @@
 <body>
 <canvas id="c"></canvas>
 <!-- 素材数据（全部用 script 加载，双击 file:// 打开也能用） -->
-<script src="bench-pre.js"></script>   <!-- game-test：性能自动测试，必须最先加载 -->
+<script src="bench-pre.js?v=2"></script>   <!-- game-test：性能自动测试，必须最先加载 -->
 <script src="assets/vendor/net-retry.js"></script>   <!-- 54 版：图片失败自动重试 -->
 <script src="assets/vendor/filepack.js"></script>   <!-- 57 版：双击打开（file://）时图片走数据包，WebGL 才能用 -->
 <!-- 57 版：PixiJS 8（WebGL）绘制整个游戏；pixi-ctx.js 把原来的 Canvas 2D 绘制调用转成 Pixi 显示对象。网址加 ?gl=0 回到 Canvas 2D 对比，?perf=1 性能面板 -->
@@ -71,6 +71,6 @@
 <script src="camp.js"></script>
 <!-- 29 版：背景音乐（局外 main / 战斗 battle）-->
 <script src="music.js"></script>
-<script src="bench.js"></script>   <!-- game-test：性能自动测试 -->
+<script src="bench.js?v=2"></script>   <!-- game-test：性能自动测试 -->
 </body>
 </html>
