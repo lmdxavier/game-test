@@ -33,7 +33,7 @@
       fps: 1000 / (mean(cur.iv) || 1), slow: cur.iv.filter(x => x > 25).length / n * 100, worst: Math.max(0, ...cur.iv),
       js: mean(cur.js), js95: pct(cur.js, 0.95), upd: mean(cur.upd), drw: mean(cur.drw), end: mean(cur.end) };
     for(const k of KEYS) r[k] = cur.st[k] / n;
-    r.grow = grow();
+    r.grow = grow(); r.kinds = Object.entries(KIND).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([k, n]) => n + ' ' + k); KIND = {};
     for(const k in r) if(typeof r[k] === 'number') r[k] = +r[k].toFixed(2);
     for(const k in r.grow) r.grow[k] = +r.grow[k].toFixed(1);
     rows.push(r); if(rows.length > 400) rows.shift(); cur = fresh();
@@ -43,7 +43,9 @@
   try{ const oP = COMBO.play; COMBO.play = function(name){ played.push(name); return oP.apply(this, arguments); }; }catch(e){}
   function missInfo(){ const a = window.__PXMISS; let px = 0; const big = [];
     for(const s of a){ const m = /^(\d+)x(\d+) (\w+)/.exec(s); if(!m) continue; const n = m[1] * m[2]; px += n; if(n > 40000) big.push(m[1] + 'x' + m[2] + m[3]); }
+    for(const s of a){ const m = /^(\d+)x(\d+) (D?\w+)/.exec(s); if(!m) continue; const txt = m[3].indexOf('T') >= 0; const k = m[3] + ' ' + (txt ? s.slice(s.lastIndexOf('|') + 1).replace(/\d/g, '#').slice(0, 10) : (Math.round(m[1] / 20) * 20) + 'x' + (Math.round(m[2] / 20) * 20)); KIND[k] = (KIND[k] || 0) + 1; }
     a.length = 0; return { px, big: big.slice(0, 4) }; }
+  let KIND = {};
   // 炸弹震屏方案切换（game-test）：0 原样 / 1 幅度加倍 / 2 加长并前半段保持 / 3 两个都加
   window.__BOOM = +((/[?&]boom=(\d)/.exec(location.search) || [])[1] || 3);   // 默认 ③
   let btnOn = null;
@@ -74,14 +76,14 @@
   const btn = document.createElement('button'); btn.id = 'rb'; btn.textContent = '性能记录'; document.body.appendChild(btn);
   const mmss = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0'), f0 = x => (+x).toFixed(0), f1 = x => (+x).toFixed(1);
   function info(){ let ren = ''; try{ const gl = ctx.r.gl, e = gl.getExtension('WEBGL_debug_renderer_info'); ren = e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; }catch(e){}
-    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, ver: '61试+rec6', q: location.search, opts: (typeof OPTS !== 'undefined' ? OPTS.fps + '/' + OPTS.res : ''), boom: window.__BOOM, shakeInt: !/[?&]shake=0\b/.test(location.search), when: new Date().toISOString() }; }
+    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, ver: '61试b+rec7', q: location.search, opts: (typeof OPTS !== 'undefined' ? OPTS.fps + '/' + OPTS.res : ''), boom: window.__BOOM, shakeInt: !/[?&]shake=0\b/.test(location.search), when: new Date().toISOString() }; }
   const stop = e => e.stopPropagation();
   btn.addEventListener('pointerdown', stop, true); btn.addEventListener('pointerup', stop, true);
   btn.addEventListener('click', e => { e.stopPropagation(); close();
     const el = document.createElement('div'); el.id = 'rr'; for(const ev of ['pointerdown','pointerup','pointermove','touchstart','touchmove','touchend','wheel','click']) el.addEventListener(ev, stop);
     const txt = JSON.stringify({ info: info(), rows, hitches });
     const last = rows.slice(-40), top = hitches.slice().sort((a, b) => b.iv - a.iv).slice(0, 12);
-    el.innerHTML = `<h1>61 试改版性能记录（共 ${rows.length} 行，卡顿 ${hitches.length} 次）</h1><button id="rc">复制全部记录</button><button id="rx">关闭</button><p class="n">炸弹震屏（点了立刻生效，回去放炸弹看）：</p><div id="bm">${['原样 0.1格 0.4秒','① 幅度 0.2格','② 0.6秒 前半段保持','③ 两个都加'].map((t, i) => `<button data-b="${i}" style="${window.__BOOM === i ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div><p class="n">发热诊断（点了会重新加载，各玩一两分钟对比手机温度）：</p><div id="dg">${[['现在的设置',''],['关抗锯齿','aa=0'],['关云影暖光','fx=0'],['两个都关','aa=0&fx=0']].map(([t, q]) => `<button data-q="${q}" style="${(location.search.replace(/^\?/, '') === q) ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div>
+    el.innerHTML = `<h1>61 试改版性能记录（共 ${rows.length} 行，卡顿 ${hitches.length} 次）</h1><button id="rc">复制全部记录</button><button id="rx">关闭</button><p class="n">炸弹震屏（点了立刻生效，回去放炸弹看）：</p><div id="bm">${['原样 0.1格 0.4秒','① 幅度 0.2格','② 0.6秒 前半段保持','③ 两个都加'].map((t, i) => `<button data-b="${i}" style="${window.__BOOM === i ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div><p class="n">发热诊断（点了会重新加载，各玩一两分钟对比手机温度）：</p><div id="dg">${[['现在的设置',''],['关云影暖光','fx=0'],['开抗锯齿（旧）','aa=1']].map(([t, q]) => `<button data-q="${q}" style="${(location.search.replace(/^\?/, '') === q) ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div>
 <table><tr><th>时间</th><th>页面</th><th>宠/怪</th><th>特效</th><th>帧/秒</th><th>慢帧</th><th>JS均</th><th>JS慢</th><th>最长</th><th>贴图</th><th>重画k</th><th>显存图</th></tr>${last.map(r => `<tr><td>${mmss(r.at)}</td><td>${r.page}${r.speed === 2 ? '×2' : ''}</td><td>${r.grow.pets}/${r.grow.mons}</td><td>${r.grow.combo}</td><td>${f0(r.fps)}</td><td>${f0(r.slow)}%</td><td>${f1(r.js)}</td><td>${f1(r.js95)}</td><td>${f0(r.worst)}</td><td>${f0(r.sprites)}</td><td>${f0(r.missPx / 1000)}</td><td>${r.grow.glTex}</td></tr>`).join('')}</table>
 <p class="n">最严重的卡顿（单帧毫秒）：${top.map(h => `${mmss(h.at)} ${h.iv}（JS ${h.js}${h.shake === 1 ? '，震屏' : ''}，重画 ${h.missK}k）`).join('、') || '无'}</p><p class="n">完整内容（所有累积项、每次卡顿）在「复制全部记录」里。</p>`;
     document.body.appendChild(el);

@@ -495,7 +495,8 @@ const FX = {
     COMBO.play('喷火-T2', {x:m.x, y:m.y-L.cs*0.3, dir:fwd(), target2:far?atE(far):null}, {freeze:[visOf(pet,true), ...hits.map(e=>VIS.get(e))]});
     for(const e of hits) hitFx(e,false); },
   // 怪死亡 T2；精英升 T4（全屏顿帧 + 震屏），特效放大 1.5 倍
-  death(e){ const elite=e.def.role==='elite'; COMBO.play('怪死亡', atE(e), elite?{tier:'T4', scale:1.5}:{freeze:[VIS.get(e)]}); },
+  // 61 版（用户 2026-11-14「Boss 死亡不需要震屏」）：精英死亡仍用 T4 的全屏顿帧，但不震屏
+  death(e){ const elite=e.def.role==='elite'; COMBO.play('怪死亡', atE(e), elite?{tier:'T4', scale:1.5, noShake:true}:{freeze:[VIS.get(e)]}); },
   // 炸弹 T4：铺满 3 格 + 全屏顿帧 + 震屏
   boom(pet){ const s=L.toScreen(pet.lane,pet.col+0.5), gy=s.y+L.cs*FEET; COMBO.play('炸弹-爆炸-T4', {x:s.x, y:gy-L.cs*0.2, gx:s.x, gy, dir:fwd()}); },
 };

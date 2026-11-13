@@ -156,7 +156,7 @@ const COMBO = (()=>{
     if(T && (c['类']==='攻击' || c['类']==='死亡')){
       if(T.global) HITSTOP=Math.max(HITSTOP, T.global);
       else if(T.freeze && opt.freeze) for(const v of opt.freeze) if(v) v.freeze=Math.max(v.freeze||0, T.freeze);
-      if(T.shake){ const B = T.global ? (window.__BOOM|0) : 0;   // game-test 试改：T4（炸弹这一档）震屏三个方案，其他档不变
+      if(T.shake && !opt.noShake){ const B = T.global ? (window.__BOOM|0) : 0;   // game-test 试改：T4（炸弹这一档）震屏三个方案，其他档不变
         if(B===1) shakeDir(0.2, 0.4, null); else if(B===2) shakeDir(0.1, 0.6, null, true); else if(B===3) shakeDir(0.2, 0.6, null, true);
         else shakeDir(T.shake[0], T.shake[1], T.global?null:(at&&at.dir)); }
     }
