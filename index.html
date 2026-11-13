@@ -29,7 +29,7 @@
 <body>
 <canvas id="c"></canvas>
 <!-- 素材数据（全部用 script 加载，双击 file:// 打开也能用） -->
-<script src="rec-pre.js?v=4"></script>   <!-- game-test：实际游玩性能记录，必须最先加载 -->
+<script src="rec-pre.js?v=5"></script>   <!-- game-test：实际游玩性能记录，必须最先加载 -->
 <script src="assets/vendor/net-retry.js"></script>   <!-- 54 版：图片失败自动重试 -->
 <script src="assets/vendor/filepack.js"></script>   <!-- 57 版：双击打开（file://）时图片走数据包，WebGL 才能用 -->
 <!-- 57 版：PixiJS 8（WebGL）绘制整个游戏；pixi-ctx.js 把原来的 Canvas 2D 绘制调用转成 Pixi 显示对象。网址加 ?gl=0 回到 Canvas 2D 对比，?perf=1 性能面板 -->
@@ -60,8 +60,8 @@
 <script src="game.js"></script>
 <script src="assets/env1/env1.js"></script>
 <script src="scene.js"></script>
-<script src="combo.js"></script>
-<script src="render.js"></script>
+<script src="combo.js?v=5"></script>
+<script src="render.js?v=5"></script>
 <!-- 局外界面：底部切换 战斗 / 宠物 / 营地（11 版） -->
 <script src="map_data.js"></script>
 <script src="map.js"></script>
@@ -71,6 +71,6 @@
 <script src="camp.js"></script>
 <!-- 29 版：背景音乐（局外 main / 战斗 battle）-->
 <script src="music.js"></script>
-<script src="rec.js?v=4"></script>   <!-- game-test：实际游玩性能记录 -->
+<script src="rec.js?v=5"></script>   <!-- game-test：实际游玩性能记录 -->
 </body>
 </html>

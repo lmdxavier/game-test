@@ -461,7 +461,7 @@ const FLASH = [];    // 命中闪光 {x,y,t,img,size,life,color}
 const PARTS = [];    // 粒子（屏幕坐标）
 function hitFx(e, big){ const v=VIS.get(e); if(v){ v.squash=0.12; v.kb=(v.kb||0)+(big?0.14:0.06); v.hitFlash=0.11; } }
 function hitPoint(e){ const v=VIS.get(e), f=feet(e.lane,e.p+((v&&v.kb)||0)+((v&&v.back)||0)); return {x:f.x, y:f.y-((v&&v.dh)?v.dh*0.5:L.cs*0.4)}; }
-function shakeDir(amp, t, dir){ if(amp*(dir?1:1) >= (shake.t>0?shake.amp:0)) shake={t:t||0.2, amp, dx:dir?dir.x:0, dy:dir?dir.y:0, t0:t||0.2}; }
+function shakeDir(amp, t, dir, hold){ if(amp*(dir?1:1) >= (shake.t>0?shake.amp:0)) shake={t:t||0.2, amp, dx:dir?dir.x:0, dy:dir?dir.y:0, t0:t||0.2, hold:!!hold}; }   // hold（game-test 试改）：前半段保持满幅，后半段再衰减
 function flashAt(x,y,size,life,imgName,color){ FLASH.push({x,y,t:0,size,life:life||0.12,img:imgName||'Image_Effect_Light02',color}); }
 const R01=()=>Math.random();
 // 速度线火花：沿 dir 方向扇形喷出，带拖尾、受重力
@@ -1171,7 +1171,7 @@ function draw(){
   ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#14171f'; ctx.fillRect(0,0,cv.width,cv.height); ctx.restore();
   ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   // 方向震屏：沿打击方向来回，衰减
-  if(shake.t>0){ shake.t-=dt; const k=Math.max(0,shake.t/shake.t0), a=shake.amp*L.cs*k*k, w=Math.sin(shake.t*70);
+  if(shake.t>0){ shake.t-=dt; const k=Math.max(0,shake.t/shake.t0), e=shake.hold ? (k>0.5 ? 1 : 4*k*k) : k*k, a=shake.amp*L.cs*e, w=Math.sin(shake.t*70);
     let sx, sy; if(shake.dx||shake.dy){ sx=shake.dx*a*w+(Math.random()-0.5)*a*0.4; sy=shake.dy*a*w+(Math.random()-0.5)*a*0.4; } else { sx=(Math.random()-0.5)*a*2; sy=(Math.random()-0.5)*a*2; }
     if(!/[?&]shake=0\b/.test(location.search)){ const q=ctx.getTransform().a||1; sx=Math.round(sx*q)/q; sy=Math.round(sy*q)/q; }   // game-test 试改：震屏偏移对齐到整数个屏幕像素（?shake=0 回到原样）
     ctx.translate(sx, sy); }
