@@ -5,7 +5,8 @@
   const M = { upd:0, drw:0, end:0 };
   const oU = window.update, oD = window.draw;
   window.update = function(dt){ const a = performance.now(); oU(dt); M.upd += performance.now() - a; };
-  window.draw = function(){ const a = performance.now(); oD(); M.drw += performance.now() - a; };
+  let DRAWN = 0;   // 真正画了几帧（30 帧档会隔帧跳过，主循环被调用的次数不等于画的次数）
+  window.draw = function(){ DRAWN++; const a = performance.now(); oD(); M.drw += performance.now() - a; };
   let hooked = false;
   function hook(){ if(hooked || !ctx.ready || !ctx.r) return; hooked = true;
     const oE = ctx.__end.bind(ctx); ctx.__end = function(){ const a = performance.now(); oE(); M.end += performance.now() - a; };
@@ -33,6 +34,7 @@
       fps: 1000 / (mean(cur.iv) || 1), slow: cur.iv.filter(x => x > 25).length / n * 100, worst: Math.max(0, ...cur.iv),
       js: mean(cur.js), js95: pct(cur.js, 0.95), upd: mean(cur.upd), drw: mean(cur.drw), end: mean(cur.end) };
     for(const k of KEYS) r[k] = cur.st[k] / n;
+    r.drawFps = +(DRAWN / ((performance.now() - cur.r0) / 1000)).toFixed(1); DRAWN = 0; r.opts = (typeof OPTS !== 'undefined' ? OPTS.fps + '/' + OPTS.res : '');
     r.grow = grow(); r.kinds = Object.entries(KIND).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([k, n]) => n + ' ' + k); KIND = {};
     for(const k in r) if(typeof r[k] === 'number') r[k] = +r[k].toFixed(2);
     for(const k in r.grow) r.grow[k] = +r.grow[k].toFixed(1);
@@ -76,7 +78,7 @@
   const btn = document.createElement('button'); btn.id = 'rb'; btn.textContent = '性能记录'; document.body.appendChild(btn);
   const mmss = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0'), f0 = x => (+x).toFixed(0), f1 = x => (+x).toFixed(1);
   function info(){ let ren = ''; try{ const gl = ctx.r.gl, e = gl.getExtension('WEBGL_debug_renderer_info'); ren = e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; }catch(e){}
-    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, ver: '61试b+rec7', q: location.search, opts: (typeof OPTS !== 'undefined' ? OPTS.fps + '/' + OPTS.res : ''), boom: window.__BOOM, shakeInt: !/[?&]shake=0\b/.test(location.search), when: new Date().toISOString() }; }
+    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, ver: '61试b+rec8', q: location.search, opts: (typeof OPTS !== 'undefined' ? OPTS.fps + '/' + OPTS.res : ''), boom: window.__BOOM, shakeInt: !/[?&]shake=0\b/.test(location.search), when: new Date().toISOString() }; }
   const stop = e => e.stopPropagation();
   btn.addEventListener('pointerdown', stop, true); btn.addEventListener('pointerup', stop, true);
   btn.addEventListener('click', e => { e.stopPropagation(); close();
@@ -84,7 +86,7 @@
     const txt = JSON.stringify({ info: info(), rows, hitches });
     const last = rows.slice(-40), top = hitches.slice().sort((a, b) => b.iv - a.iv).slice(0, 12);
     el.innerHTML = `<h1>61 试改版性能记录（共 ${rows.length} 行，卡顿 ${hitches.length} 次）</h1><button id="rc">复制全部记录</button><button id="rx">关闭</button><p class="n">炸弹震屏（点了立刻生效，回去放炸弹看）：</p><div id="bm">${['原样 0.1格 0.4秒','① 幅度 0.2格','② 0.6秒 前半段保持','③ 两个都加'].map((t, i) => `<button data-b="${i}" style="${window.__BOOM === i ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div><p class="n">发热诊断（点了会重新加载，各玩一两分钟对比手机温度）：</p><div id="dg">${[['现在的设置',''],['关云影暖光','fx=0'],['开抗锯齿（旧）','aa=1']].map(([t, q]) => `<button data-q="${q}" style="${(location.search.replace(/^\?/, '') === q) ? 'background:#3b6fd6' : ''}">${t}</button>`).join('')}</div>
-<table><tr><th>时间</th><th>页面</th><th>宠/怪</th><th>特效</th><th>帧/秒</th><th>慢帧</th><th>JS均</th><th>JS慢</th><th>最长</th><th>贴图</th><th>重画k</th><th>显存图</th></tr>${last.map(r => `<tr><td>${mmss(r.at)}</td><td>${r.page}${r.speed === 2 ? '×2' : ''}</td><td>${r.grow.pets}/${r.grow.mons}</td><td>${r.grow.combo}</td><td>${f0(r.fps)}</td><td>${f0(r.slow)}%</td><td>${f1(r.js)}</td><td>${f1(r.js95)}</td><td>${f0(r.worst)}</td><td>${f0(r.sprites)}</td><td>${f0(r.missPx / 1000)}</td><td>${r.grow.glTex}</td></tr>`).join('')}</table>
+<table><tr><th>时间</th><th>页面</th><th>宠/怪</th><th>特效</th><th>帧/秒</th><th>慢帧</th><th>JS均</th><th>JS慢</th><th>最长</th><th>贴图</th><th>重画k</th><th>显存图</th></tr>${last.map(r => `<tr><td>${mmss(r.at)}</td><td>${r.page}${r.speed === 2 ? '×2' : ''}</td><td>${r.grow.pets}/${r.grow.mons}</td><td>${r.grow.combo}</td><td>${f0(r.drawFps)}</td><td>${f0(r.slow)}%</td><td>${f1(r.js)}</td><td>${f1(r.js95)}</td><td>${f0(r.worst)}</td><td>${f0(r.sprites)}</td><td>${f0(r.missPx / 1000)}</td><td>${r.grow.glTex}</td></tr>`).join('')}</table>
 <p class="n">最严重的卡顿（单帧毫秒）：${top.map(h => `${mmss(h.at)} ${h.iv}（JS ${h.js}${h.shake === 1 ? '，震屏' : ''}，重画 ${h.missK}k）`).join('、') || '无'}</p><p class="n">完整内容（所有累积项、每次卡顿）在「复制全部记录」里。</p>`;
     document.body.appendChild(el);
     el.querySelector('#rx').onclick = () => el.remove();
