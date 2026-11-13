@@ -23,7 +23,7 @@
     glTex: tryN(() => ctx.r.texture.managedTextures.length), fcMB: tryN(() => FC.bytes / 1048576), fcGroups: tryN(() => FC.groups.size), nine: tryN(() => NINE_CNT), cards: tryN(() => CARD_CACHE.size),
     voices: tryN(() => COMBO._A.voices.length), sndVoices: tryN(() => SND.voices), imgs: tryN(() => Object.keys(window.__IMG).length),
   });
-  const KEYS = ['sprites','raster','rasterMiss','upPx','drawCalls','chars'];
+  const KEYS = ['sprites','raster','rasterMiss','upPx','drawCalls','chars','missPx','shakeF'];
   const fresh = () => { const o = { iv:[], js:[], upd:[], drw:[], end:[], st:{}, r0:performance.now() }; KEYS.forEach(k => o.st[k] = 0); return o; };
   const rows = [], hitches = []; let cur = fresh(), prev = 0;
   const page = () => { try{ return MT.inBattle ? (G.over ? '结算' : G.paused ? '暂停' : '战斗') : MT.tab; }catch(e){ return '?'; } };
@@ -38,6 +38,12 @@
     for(const k in r.grow) r.grow[k] = +r.grow[k].toFixed(1);
     rows.push(r); if(rows.length > 400) rows.shift(); cur = fresh();
   }
+  // v4：每帧记光栅重画（pixi-ctx 的 __PXMISS）、是否震屏、本帧新播的效果组合
+  window.__PXMISS = []; const played = [];
+  try{ const oP = COMBO.play; COMBO.play = function(name){ played.push(name); return oP.apply(this, arguments); }; }catch(e){}
+  function missInfo(){ const a = window.__PXMISS; let px = 0; const big = [];
+    for(const s of a){ const m = /^(\d+)x(\d+) (\w+)/.exec(s); if(!m) continue; const n = m[1] * m[2]; px += n; if(n > 40000) big.push(m[1] + 'x' + m[2] + m[3]); }
+    a.length = 0; return { px, big: big.slice(0, 4) }; }
   let btnOn = null;
   R.onFrame = (now, js) => {
     hook();
@@ -45,10 +51,12 @@
     if(iv > 0 && iv < 5000){
       cur.iv.push(iv); cur.js.push(js); cur.upd.push(M.upd); cur.drw.push(M.drw); cur.end.push(M.end);
       const l = ctx.last || {}; for(const k of KEYS) cur.st[k] += (l[k] || 0);
-      if(iv > 50 && READY) hitches.push({ at: +((performance.now() - T_OPEN) / 1000).toFixed(1), page: page(), gt: +tryN(() => G.t).toFixed(1), iv: +iv.toFixed(0), js: +js.toFixed(1), upd: +M.upd.toFixed(1), drw: +M.drw.toFixed(1), end: +M.end.toFixed(1), miss: l.rasterMiss || 0, upK: Math.round((l.upPx || 0) / 1000), mons: tryN(() => G.enemies.length), combo: tryN(() => COMBO._LIVE.length) });
+      const mi = missInfo(), shk = tryN(() => shake.t > 0 ? 1 : 0); cur.st.missPx += mi.px; if(shk === 1) cur.st.shakeF++;
+      const pl = played.splice(0);
+      if(iv > 50 && READY) hitches.push({ at: +((performance.now() - T_OPEN) / 1000).toFixed(1), page: page(), gt: +tryN(() => G.t).toFixed(1), iv: +iv.toFixed(0), js: +js.toFixed(1), upd: +M.upd.toFixed(1), drw: +M.drw.toFixed(1), end: +M.end.toFixed(1), miss: l.rasterMiss || 0, missK: Math.round(mi.px / 1000), big: mi.big, shake: shk, play: pl.slice(0, 4), upK: Math.round((l.upPx || 0) / 1000), mons: tryN(() => G.enemies.length), combo: tryN(() => COMBO._LIVE.length) });
       if(hitches.length > 400) hitches.shift();
     }
-    M.upd = M.drw = M.end = 0;
+    M.upd = M.drw = M.end = 0; if(window.__PXMISS.length > 2000) window.__PXMISS.length = 0; if(played.length > 200) played.length = 0;
     if(performance.now() - cur.r0 >= BK) close();
     let want = true; try{ want = !MT.inBattle || G.paused || !!G.over; }catch(e){}
     if(want !== btnOn){ btnOn = want; btn.style.display = want ? 'block' : 'none'; }
@@ -64,16 +72,16 @@
   const btn = document.createElement('button'); btn.id = 'rb'; btn.textContent = '性能记录'; document.body.appendChild(btn);
   const mmss = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0'), f0 = x => (+x).toFixed(0), f1 = x => (+x).toFixed(1);
   function info(){ let ren = ''; try{ const gl = ctx.r.gl, e = gl.getExtension('WEBGL_debug_renderer_info'); ren = e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : ''; }catch(e){}
-    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, when: new Date().toISOString() }; }
+    const ua = navigator.userAgent; return { os: (ua.match(/(iPhone OS|Android|Mac OS X|Windows NT) [\d_.]+/) || [''])[0], br: (ua.match(/(CriOS|Chrome|Version|Firefox)\/[\d.]+/) || [''])[0], screen: screen.width + 'x' + screen.height, dpr: devicePixelRatio, canvas: cv.width + 'x' + cv.height, renderer: ren, standalone: navigator.standalone === true, ver: '60+rec4', shakeInt: !/[?&]shake=0\b/.test(location.search), when: new Date().toISOString() }; }
   const stop = e => e.stopPropagation();
   btn.addEventListener('pointerdown', stop, true); btn.addEventListener('pointerup', stop, true);
   btn.addEventListener('click', e => { e.stopPropagation(); close();
     const el = document.createElement('div'); el.id = 'rr'; for(const ev of ['pointerdown','pointerup','pointermove','touchstart','touchmove','touchend','wheel','click']) el.addEventListener(ev, stop);
     const txt = JSON.stringify({ info: info(), rows, hitches });
     const last = rows.slice(-40), top = hitches.slice().sort((a, b) => b.iv - a.iv).slice(0, 12);
-    el.innerHTML = `<h1>性能记录（共 ${rows.length} 行，卡顿 ${hitches.length} 次）</h1><button id="rc">复制全部记录</button><button id="rx">关闭</button>
-<table><tr><th>时间</th><th>页面</th><th>宠/怪</th><th>特效</th><th>帧/秒</th><th>慢帧</th><th>JS均</th><th>JS慢</th><th>最长</th><th>贴图</th><th>显存图</th></tr>${last.map(r => `<tr><td>${mmss(r.at)}</td><td>${r.page}${r.speed === 2 ? '×2' : ''}</td><td>${r.grow.pets}/${r.grow.mons}</td><td>${r.grow.combo}</td><td>${f0(r.fps)}</td><td>${f0(r.slow)}%</td><td>${f1(r.js)}</td><td>${f1(r.js95)}</td><td>${f0(r.worst)}</td><td>${f0(r.sprites)}</td><td>${r.grow.glTex}</td></tr>`).join('')}</table>
-<p class="n">最严重的卡顿（单帧毫秒）：${top.map(h => `${mmss(h.at)} ${h.iv}（JS ${h.js}）`).join('、') || '无'}</p><p class="n">完整内容（所有累积项、每次卡顿）在「复制全部记录」里。</p>`;
+    el.innerHTML = `<h1>60 版${/[?&]shake=0\b/.test(location.search) ? '（震屏原样）' : '（震屏试改）'}性能记录（共 ${rows.length} 行，卡顿 ${hitches.length} 次）</h1><button id="rc">复制全部记录</button><button id="rx">关闭</button>
+<table><tr><th>时间</th><th>页面</th><th>宠/怪</th><th>特效</th><th>帧/秒</th><th>慢帧</th><th>JS均</th><th>JS慢</th><th>最长</th><th>贴图</th><th>重画k</th><th>显存图</th></tr>${last.map(r => `<tr><td>${mmss(r.at)}</td><td>${r.page}${r.speed === 2 ? '×2' : ''}</td><td>${r.grow.pets}/${r.grow.mons}</td><td>${r.grow.combo}</td><td>${f0(r.fps)}</td><td>${f0(r.slow)}%</td><td>${f1(r.js)}</td><td>${f1(r.js95)}</td><td>${f0(r.worst)}</td><td>${f0(r.sprites)}</td><td>${f0(r.missPx / 1000)}</td><td>${r.grow.glTex}</td></tr>`).join('')}</table>
+<p class="n">最严重的卡顿（单帧毫秒）：${top.map(h => `${mmss(h.at)} ${h.iv}（JS ${h.js}${h.shake === 1 ? '，震屏' : ''}，重画 ${h.missK}k）`).join('、') || '无'}</p><p class="n">完整内容（所有累积项、每次卡顿）在「复制全部记录」里。</p>`;
     document.body.appendChild(el);
     el.querySelector('#rx').onclick = () => el.remove();
     el.querySelector('#rc').onclick = ev => { const done = () => { ev.target.textContent = '已复制'; };

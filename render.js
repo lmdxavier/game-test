@@ -1172,8 +1172,9 @@ function draw(){
   ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
   // 方向震屏：沿打击方向来回，衰减
   if(shake.t>0){ shake.t-=dt; const k=Math.max(0,shake.t/shake.t0), a=shake.amp*L.cs*k*k, w=Math.sin(shake.t*70);
-    if(shake.dx||shake.dy) ctx.translate(shake.dx*a*w+(Math.random()-0.5)*a*0.4, shake.dy*a*w+(Math.random()-0.5)*a*0.4);
-    else ctx.translate((Math.random()-0.5)*a*2,(Math.random()-0.5)*a*2); }
+    let sx, sy; if(shake.dx||shake.dy){ sx=shake.dx*a*w+(Math.random()-0.5)*a*0.4; sy=shake.dy*a*w+(Math.random()-0.5)*a*0.4; } else { sx=(Math.random()-0.5)*a*2; sy=(Math.random()-0.5)*a*2; }
+    if(!/[?&]shake=0\b/.test(location.search)){ const q=ctx.getTransform().a||1; sx=Math.round(sx*q)/q; sy=Math.round(sy*q)/q; }   // game-test 试改：震屏偏移对齐到整数个屏幕像素（?shake=0 回到原样）
+    ctx.translate(sx, sy); }
   SCENE.drawGround(ctx); COMBO.draw(adt,'ground'); drawPreviewLanes(); drawPlacement(); drawAuras();   // 放置提示框在地面层，不盖在角色身上
   // 道具、角色、木箱按脚底 y 排序：前面的挡住后面的
   const list=[];
