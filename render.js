@@ -618,6 +618,24 @@ function text(s,x,y,size,color,align,weight,stroke){
   if(stroke!==false){ ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,size*0.22); ctx.strokeStyle=stroke||'#1e2236'; ctx.strokeText(s,x,y); }
   ctx.fillStyle=color||'#fff'; ctx.fillText(s,x,y);
 }
+// 61 版：会变的数字（能量、伤害）按「位图字体」的办法画——每个数字字符的图只画一次存起来，数字怎么变、怎么缩放都只是摆这几张图，
+//        不再每出现一个新数值就重画一张再上传（真机记录里每秒 10 来次重画、显存图一路涨的来源）。先描完所有字符的边再填色，和整串一起画的叠放顺序一样。
+const NUMADV = new Map();
+function numText(s, x, y, size, color, align, scale){
+  s=String(s); scale=scale||1;
+  if(!(DYN_TEXT && ctx.__dynText)){ text(s, x, y, size*scale, color, align); return; }
+  size=Math.round(size*4)/4; ctx.font=`800 ${size}px ${FONT}`;
+  let w=0; const adv=[]; for(const ch of s){ const k=size+ch; let a=NUMADV.get(k); if(a===undefined){ a=ctx.measureText(ch).width; if(NUMADV.size>4000) NUMADV.clear(); NUMADV.set(k,a); } adv.push(a); w+=a; }
+  ctx.save(); ctx.translate(x,y); if(scale!==1) ctx.scale(scale,scale); ctx.__dynText(scale);
+  const x0 = align==='left' ? 0 : align==='right' ? -w : -w/2; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,size*0.22); ctx.strokeStyle='#1e2236';
+  let cx=x0, i=0; for(const ch of s){ ctx.strokeText(ch, cx, 0); cx+=adv[i++]; }
+  ctx.fillStyle=color||'#fff'; cx=x0; i=0; for(const ch of s){ ctx.fillText(ch, cx, 0); cx+=adv[i++]; }
+  ctx.__dynText(0); ctx.restore();
+}
+// 61 版：火花线条用一张小胶囊图旋转 / 拉伸来摆，不再每条线每帧各画一张图
+const STREAK = new Map();
+function streakImg(color){ let c=STREAK.get(color); if(!c){ c=document.createElement('canvas'); c.width=48; c.height=12; const g=c.getContext('2d'); g.strokeStyle=color; g.lineCap='round'; g.lineWidth=10; g.beginPath(); g.moveTo(6,6); g.lineTo(42,6); g.stroke(); if(STREAK.size>64) STREAK.clear(); STREAK.set(color,c); } return c; }
 function drawImg(im, x, y, w, h, flip, alpha){
   if(!ok(im)) return;
   if(flip||alpha!=null){ ctx.save(); if(alpha!=null) ctx.globalAlpha*=alpha; if(flip){ ctx.translate(x+w,y); ctx.scale(-1,1); ctx.drawImage(im,0,0,w,h); } else ctx.drawImage(im,x,y,w,h); ctx.restore(); }
@@ -794,8 +812,12 @@ function drawVFX(dt){
     if(p.kind==='streak'){
       const sp=Math.hypot(p.vx,p.vy), len=Math.min(cs*0.5, sp*0.045)*(1-k*0.5), ux=p.vx/(sp||1), uy=p.vy/(sp||1);
       ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
-      ctx.globalAlpha=1-k; ctx.strokeStyle=p.color; ctx.lineWidth=p.w*(1-k*0.6); ctx.beginPath(); ctx.moveTo(p.x-ux*len,p.y-uy*len); ctx.lineTo(p.x,p.y); ctx.stroke();
-      ctx.strokeStyle='#ffffff'; ctx.lineWidth=p.w*0.45*(1-k); ctx.beginPath(); ctx.moveTo(p.x-ux*len*0.5,p.y-uy*len*0.5); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.restore();
+      ctx.globalAlpha=1-k; const lw=p.w*(1-k*0.6);
+      if(DYN_TEXT && ctx.__dynText){ ctx.translate(p.x,p.y); ctx.rotate(Math.atan2(uy,ux)); ctx.drawImage(streakImg(p.color), -len-lw/2, -lw/2, len+lw, lw);
+        const lw2=p.w*0.45*(1-k); if(lw2>0.05) ctx.drawImage(streakImg('#ffffff'), -len*0.5-lw2/2, -lw2/2, len*0.5+lw2, lw2); }
+      else { ctx.strokeStyle=p.color; ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(p.x-ux*len,p.y-uy*len); ctx.lineTo(p.x,p.y); ctx.stroke();
+        ctx.strokeStyle='#ffffff'; ctx.lineWidth=p.w*0.45*(1-k); ctx.beginPath(); ctx.moveTo(p.x-ux*len*0.5,p.y-uy*len*0.5); ctx.lineTo(p.x,p.y); ctx.stroke(); }
+      ctx.restore();
     } else {
       if(p.y>p.floor && p.vy>0){ p.y=p.floor; p.vy*=-p.bounce; p.vx*=0.6; p.vr*=0.5; }
       p.rot+=p.vr*dt; const a = k>1-p.fade ? (1-k)/p.fade : 1; const s=p.size*(k<0.1?0.5+5*k:1);
@@ -904,7 +926,7 @@ function drawDamage(dt){
     const pop = k<0.15 ? 0.7+2*k : 1; const sz=cs*(d.big?0.3:d.burn?0.17:0.22)*pop;
     ctx.globalAlpha = k>0.6 ? 1-(k-0.6)/0.4 : 1;
     const dx=s.x+d.dx*cs, dy=s.y+cs*FEET-cs*0.95-k*cs*0.45, dc=d.big?'#ffe14d':d.burn?'#ff6a3d':'#ffffff';
-    if(DYN_TEXT && ctx.__dynText){ ctx.save(); ctx.translate(dx,dy); ctx.scale(pop,pop); ctx.__dynText(pop); text(String(d.n), 0, 0, sz/pop, dc); ctx.__dynText(0); ctx.restore(); }   // 61 版：数字图只画一次，弹出缩放和上飘交给显卡
+    if(DYN_TEXT && ctx.__dynText) numText(d.n, dx, dy, sz/pop, dc, 'center', pop);   // 61 版：数字图只画一次，弹出缩放和上飘交给显卡
     else text(String(d.n), dx, dy, sz, dc);
     ctx.globalAlpha=1; }
   for(let i=DMG.length-1;i>=0;i--) if(DMG[i].done) DMG.splice(i,1);
@@ -957,7 +979,7 @@ function drawUI2(){
       const target=G.energy-PENDING.energy; if(DISP.energy==null||!G.started) DISP.energy=target; DISP.energy+=(target-DISP.energy)*0.18; if(Math.abs(target-DISP.energy)<0.5) DISP.energy=target;   // 数字滚动
       const sh=DENY.energy>0? Math.sin(DENY.energy*60)*4*DENY.energy/0.35 : 0; DENY.energy=Math.max(0,DENY.energy-1/60);   // 能量不够：变红抖动
       drawImgC(energyIcon(), it.x+it.h*0.42+sh, it.y+it.h/2, it.h*1.05*(1+bump));
-      text(Math.round(DISP.energy), it.x+it.h*0.85+(it.w-it.h*0.85)/2+sh, it.y+it.h/2, it.h*0.5*(1+bump*0.4), DENY.energy>0?'#ff6b6b':'#fff', 'center'); }
+      numText(Math.round(DISP.energy), it.x+it.h*0.85+(it.w-it.h*0.85)/2+sh, it.y+it.h/2, it.h*0.5, DENY.energy>0?'#ff6b6b':'#fff', 'center', 1+bump*0.4); }
     if(it.id==='card'){ const d=DATA.pets[it.key]; const okE=G.energy>=d.cost; const cd=G.cooldown[it.key]; const sel=G.selected===it.key;
       const c=CARDFX[it.key]=CARDFX[it.key]||{}; const dt1=1/60;
       if(c.prevCd>0 && cd<=0) c.ready=0.3; c.prevCd=cd;
