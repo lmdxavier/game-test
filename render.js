@@ -1075,8 +1075,9 @@ function resumeButton(){ return {x:W/2-80, y:H*0.42-38, w:160, h:56}; }
 function quitButton(){ return {x:W/2-80, y:H*0.42+32, w:160, h:56}; }
 function soundButtons(){ const y=H*0.42+104, w=106, h=46, g=8; return [{key:'musicOff', cn:'音乐', icon:'IconMisc/Icon_Music', x:W/2-g/2-w, y, w, h}, {key:'muted', cn:'音效', icon:'IconMisc/Icon_Megaphone', x:W/2+g/2, y, w, h}]; }
 // 返回营地：结束这一局（不结算），回到局外的营地页
-function optButtons(){ const y=H*0.42+104+54, w=106, h=46, g=8; return [{key:'fps', x:W/2-g/2-w, y, w, h}, {key:'res', x:W/2+g/2, y, w, h}]; }
-function optToggle(k){ if(k==='fps') OPTS.fps = OPTS.fps===60 ? 30 : 60; else { OPTS.res = OPTS.res===2 ? 1.5 : 2; resize(); } optsSave(); }
+function optButtons(){ const y=H*0.42+104+54, w=106, h=46, g=8; return [{key:'fps', x:W/2-g/2-w, y, w, h}, {key:'res', x:W/2+g/2, y, w, h}, {key:'aa', x:W/2-g/2-w, y:y+54, w:w*2+g, h}]; }
+function optToggle(k){ if(k==='fps') OPTS.fps = OPTS.fps===60 ? 30 : 60; else if(k==='aa') OPTS.aa = !OPTS.aa; else { OPTS.res = OPTS.res===2 ? 1.5 : 2; resize(); } optsSave(); }
+function optLabel(k){ return k==='fps' ? '帧率 '+OPTS.fps : k==='res' ? '画质 '+(OPTS.res===2?'高':'标准') : '抗锯齿 '+(OPTS.aa?'开':'关')+(OPTS.aa!==AA_LIVE?'（重开生效）':''); }
 function quitBattle(){ G.paused=false; G.started=false; if(typeof MT!=='undefined'){ MT.inBattle=false; MT.tab='camp'; } emit('ui'); }
 // 暂停时：点「继续」恢复；其他点击都不进游戏（暂停中不能偷偷布阵）
 cv.addEventListener('pointerdown', e=>{ if(!G.paused||G.over) return; const x=PX(e), y=PY(e), b=resumeButton(), pz=L.items.find(i=>i.id==='pause');
@@ -1212,7 +1213,7 @@ function draw(){
     // 31 版：继续 / 返回营地；46 版：音乐 / 音效开关。
     // 47 版（用户 2026-11-13：「暂停界面能换成剑与远征配色吗」）：和局外界面同一套启程配色（meta.js 的 TH_AFK / D37）——米白面板 + 深暖灰描边和厚边 + 一圈金线，
     //   主按钮启程绿、次按钮深暖灰，字不用蓝紫描边。原来是 Super Casual 的亮蓝弹窗 + 亮绿 / 亮蓝按钮。
-    const U=TH_AFK.ui, pw=Math.min(W-60,300), ph=250+64+54, px=W/2-pw/2, py=H*0.42-125;
+    const U=TH_AFK.ui, pw=Math.min(W-60,300), ph=250+64+54+54, px=W/2-pw/2, py=H*0.42-125;
     const pf=dBox(px, py, pw, ph, 22, U.panel, D37.sideL, D37.out, 0);
     ctx.save(); ctx.strokeStyle=D37.gold; ctx.lineWidth=1.5; rr(pf.x+6, pf.y+6, pf.w-12, pf.h-12, 17); ctx.stroke(); ctx.restore();
     text('暂停', W/2, py+44, 24, U.txt, 'center', 800, false);
@@ -1221,7 +1222,7 @@ function draw(){
     ab(quitButton(), '返回营地', '#685d5b', '#4f4548');
     for(const s of soundButtons()){ const on=!SND[s.key], f=ab(s, '', on?'#749965':'#cfc8bc', on?'#587a4c':'#b9aea8');
       drawImgC(gui(s.icon), f.x+21, f.y+f.h/2, 22, on?1:0.5); text(s.cn+(on?' 开':' 关'), f.x+f.w/2+12, f.y+f.h/2+1, 15, on?'#fff':'#8d8485', 'center', 800, on?'#587a4c':false); }
-    for(const s of optButtons()){ const f=ab(s, '', '#685d5b', '#4f4548'); text(s.key==='fps' ? '帧率 '+OPTS.fps : '画质 '+(OPTS.res===2?'高':'标准'), f.x+f.w/2, f.y+f.h/2+1, 15, '#fff', 'center', 800, '#4f4548'); } }
+    for(const s of optButtons()){ const f=ab(s, '', '#685d5b', '#4f4548'); text(optLabel(s.key), f.x+f.w/2, f.y+f.h/2+1, 15, '#fff', 'center', 800, '#4f4548'); } }
   if(G.over && RSNAP.on && (G.overT||0)>1.6 && shake.t<=0 && ((G.overT||0)>4 || !(flyers.length||corpses.length||VFX.length||PARTS.length||FLASH.length||DMG.length||MONFX.length||COMBO._LIVE.length))){
     if(!RSNAP.cv) RSNAP.cv=document.createElement('canvas'); const c=RSNAP.cv; if(c.width!==cv.width||c.height!==cv.height){ c.width=cv.width; c.height=cv.height; }
     const g=c.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation='copy'; g.drawImage(cv,0,0); g.globalCompositeOperation='source-over';

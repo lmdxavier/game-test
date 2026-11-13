@@ -58,7 +58,7 @@ const COMBO = (()=>{
     if(o.rot) ctx.rotate(o.rot);
     if(o.squashY) ctx.scale(1,o.squashY);
     ctx.scale(s,s);
-    if(crop) ctx.drawImage(image, 0,0,fw,fh, -crop[2]/2-cx+crop[0], -crop[3]/2-cy+crop[1], fw, fh);
+    if(crop) ctx.drawImage(image, 0,0,fw,fh, -crop[2]/2-cx+crop[0], -crop[3]/2-cy+crop[1], fw*(crop[4]||1), fh*(crop[5]||1));   // crop[4], crop[5]：图按显示大小缩小过的倍数（tools/shrink_combo_frames.py）
     else ctx.drawImage(image, sx,sy,fw,fh, -fw/2-cx, -fh/2-cy, fw, fh);
     ctx.restore();
   }

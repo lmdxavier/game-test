@@ -90,7 +90,8 @@ const cv = document.getElementById('c'); let ctx = window.PIXICTX ? PIXICTX.crea
 let W=0,H=0,DPR=1;
 // 61 版：帧率、画质设置（暂停界面里切换，存在本机）。fps: 60 / 30；res: 画布清晰度上限 2（高）/ 1.5（标准）
 // 默认 30 帧 + 标准画质（用户 2026-11-14 真机对比：「肉眼不对比的话差别不大」，发热少一些）；玩家在暂停界面改过的以玩家的为准
-const OPTS = {fps:30, res:1.5}; try{ const o=JSON.parse(localStorage.getItem('tata_opts')||'{}')||{}; if(o.fps===60) OPTS.fps=60; if(o.res===2) OPTS.res=2; }catch(e){}
+const OPTS = {fps:30, res:1.5, aa:false}; try{ const o=JSON.parse(localStorage.getItem('tata_opts')||'{}')||{}; if(o.fps===60) OPTS.fps=60; if(o.res===2) OPTS.res=2; if(o.aa===true) OPTS.aa=true; }catch(e){}
+const AA_LIVE = OPTS.aa || /[?&]aa=1\b/.test(location.search);   // 抗锯齿只能在创建画面时定，改了要重开才生效（pixi-ctx.js 启动时自己读同一份设置）
 function optsSave(){ try{ localStorage.setItem('tata_opts', JSON.stringify(OPTS)); }catch(e){} }
 let orientMode = 'portrait';
 let X0 = 0, SW = 0, SC = 1, X0PX = 0, Y0PX = 0;

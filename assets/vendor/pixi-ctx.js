@@ -197,7 +197,7 @@ class PixiCtx {
     this.stats = { frames:0, flushes:0, sprites:0, raster:0, rasterMiss:0, uploads:0, drawCalls:0, upPx:0 };
     this.fstat = { flushes:0, sprites:0, raster:0, rasterMiss:0, uploads:0, drawCalls:0, upPx:0 };
     P.autoDetectRenderer({ preference:'webgl', canvas:cv, width:cv.width || 1, height:cv.height || 1, resolution:1, autoDensity:false,
-      antialias:/[?&]aa=1\b/.test(location.search),   // 61 版：默认关抗锯齿（用户 2026-11-14 真机对比「没看出什么区别所以默认可以关」；Pixi 官方对移动端的建议），?aa=1 打开对比
+      antialias:/[?&]aa=1\b/.test(location.search) || (() => { try{ return JSON.parse(localStorage.getItem('tata_opts') || '{}').aa === true; }catch(e){ return false; } })(),   // 61 版：默认关抗锯齿（用户 2026-11-14 真机对比「没看出什么区别所以默认可以关」；Pixi 官方对移动端的建议），?aa=1 打开对比
       backgroundAlpha:0, clearBeforeRender:true, preserveDrawingBuffer:false, powerPreference:'high-performance',
       gcMaxUnusedTime:20000, gcFrequency:10000 })   // 20 秒没画过的贴图释放显存（Pixi 默认 60 秒）
       .then(r => { this.r = r; this.ready = true;
