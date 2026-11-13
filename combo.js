@@ -25,7 +25,7 @@ const COMBO = (()=>{
   const GROUND_SQUASH = 0.45;                  // 地面层压扁比例（和 v6 地面波纹一致）
 
   // ---------- 图片 ----------
-  const IMGS = {};
+  const IMGS = {}, CROP = window.COMBO_CROP || {};
   const url = p => 'assets/combos/img/' + p.split('/').map(encodeURIComponent).join('/');
   function im(p){ let i=IMGS[p];   // 56 版：全部重试失败后，隔 5 秒以上再被用到时重新请求
     if(i && i.complete && !i.naturalWidth && performance.now()-(i.__t||0)>5000) i=null;
@@ -44,10 +44,10 @@ const COMBO = (()=>{
   // 画一层的第 fi 帧；位置 (x,y) 是锚点；rot 只给 left 锚点（沿前进方向铺）
   function drawLayer(l, fi, x, y, o){
     const cs=L.cs, box=l['内容框'], bw=box[2]-box[0], s=l['大小格']*cs*(o.scale||1)/bw;
-    let image, sx=0, sy=0, fw, fh;
+    let image, sx=0, sy=0, fw, fh, crop=null;   // crop（61 版）：这张图四周的空白被裁掉了，[裁掉的左, 上, 原宽, 原高]（tools/crop_combo_frames.py）
     if(l['类型']==='图集'){ image=im(l['素材']); if(!okI(image)) return; fw=l['帧宽']; fh=l['帧高'];
       const cols=Math.max(1,Math.floor(image.naturalWidth/fw)), f=l['帧范围'][0]+fi; sx=(f%cols)*fw; sy=Math.floor(f/cols)*fh; }
-    else { image=im(l['帧'][fi]); if(!okI(image)) return; fw=image.naturalWidth; fh=image.naturalHeight; }
+    else { image=im(l['帧'][fi]); if(!okI(image)) return; fw=image.naturalWidth; fh=image.naturalHeight; crop=CROP[l['帧'][fi]]; }
     const cx = l['锚点']==='left' ? box[0] : (box[0]+box[2])/2, cy=(box[1]+box[3])/2;
     ctx.save();
     const a0=(o.alpha??1)*(l['不透明度']??1);
@@ -58,7 +58,8 @@ const COMBO = (()=>{
     if(o.rot) ctx.rotate(o.rot);
     if(o.squashY) ctx.scale(1,o.squashY);
     ctx.scale(s,s);
-    ctx.drawImage(image, sx,sy,fw,fh, -fw/2-cx, -fh/2-cy, fw, fh);
+    if(crop) ctx.drawImage(image, 0,0,fw,fh, -crop[2]/2-cx+crop[0], -crop[3]/2-cy+crop[1], fw, fh);
+    else ctx.drawImage(image, sx,sy,fw,fh, -fw/2-cx, -fh/2-cy, fw, fh);
     ctx.restore();
   }
 
