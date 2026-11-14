@@ -331,7 +331,7 @@ class PixiCtx {
       if(txt){ g.shadowColor = 'rgba(0,0,0,0)'; g.filter = 'none'; const cg = c.getContext('2d'); cg.drawImage(tc, 0, 0, w, h, 0, 0, w, h); }
       const src = new P.CanvasSource({ resource:c, width:w, height:h, resolution:1 });
       e = { w, h, cv:c, tex:new P.Texture({ source:src }) }; rcPut(key, e); this.fstat.rasterMiss++;
-      if(window.__PXMISS) window.__PXMISS.push(w + 'x' + h + ' ' + key.slice(0, 160));
+      if(window.__PXMISS) window.__PXMISS.push(w + 'x' + h + ' ' + key.slice(0, 160) + (txt ? '|' + key.slice(key.lastIndexOf('|') + 1, key.lastIndexOf('|') + 13) : ''));
     }
     const s = this._sprite(e.tex); const t = _MT; t.b = 0; t.c = 0;
     if(dyn){ t.a = dyn.s; t.d = dyn.s; t.tx = dyn.tx + px * dyn.s; t.ty = dyn.ty + py * dyn.s; } else { t.a = 1; t.d = 1; t.tx = px; t.ty = py; }
