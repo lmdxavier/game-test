@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>挖宝原型 p1</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:#16141f;color:#eee;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;overflow:hidden;touch-action:manipulation}
+#app{display:flex;flex-direction:column;align-items:center;height:100%;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+#hud{width:100%;max-width:560px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:6px 10px;background:#221f2e;border-radius:10px;font-size:15px}
+#hud .g{display:flex;align-items:center;gap:4px;white-space:nowrap}
+#xpbar{width:64px;height:8px;background:#3a3550;border-radius:4px;overflow:hidden}
+#xpfill{height:100%;background:#5fb3ff;width:0}
+#hpnum.low{color:#ff6b6b}
+#boardwrap{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
+#board{display:grid;gap:3px;position:relative}
+.c{width:var(--cs);height:var(--cs);border-radius:6px;background:#3b3654;display:flex;align-items:center;justify-content:center;position:relative;font-weight:800;font-size:calc(var(--cs)*.46);cursor:pointer;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.c.r{background:#28243a;box-shadow:none}
+.c .n{line-height:1}
+.c .ic{position:absolute;right:2px;top:1px;font-size:calc(var(--cs)*.2);font-weight:400;opacity:.9}
+.c.cm .n{color:#ff5a5f}.c.ct .n{color:#ffc53d}.c.cx .n{color:#c084fc}
+.c .e{font-size:calc(var(--cs)*.58);font-weight:400}
+.c .dmg{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:calc(var(--cs)*.24);font-weight:800;color:#fff;text-shadow:0 0 3px #000}
+.c .dmg.die{color:#ff5a5f}
+.c .mk{font-size:calc(var(--cs)*.42);font-weight:800}
+.mk.m{color:#ff5a5f}.mk.t{color:#ffc53d}.mk.q{color:#aaa}
+.c.boss{outline:2px solid #ff5a5f}
+.c.dead{opacity:.35}
+.shake{animation:sh .3s}
+@keyframes sh{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+#bar{width:100%;max-width:560px;display:flex;gap:8px;justify-content:center;padding-top:6px}
+button{font:inherit;font-size:15px;color:#eee;background:#3b3654;border:0;border-radius:8px;padding:9px 16px;cursor:pointer}
+button:disabled{opacity:.4}
+button.pri{background:#6d4fd8}
+.ov{position:fixed;inset:0;background:rgba(10,8,16,.78);display:none;align-items:center;justify-content:center;z-index:10;padding:12px}
+.ov.on{display:flex}
+.pn{background:#221f2e;border-radius:12px;padding:14px;max-width:440px;width:100%;max-height:100%;overflow:auto;font-size:14px;line-height:1.5}
+.pn h3{margin:0 0 8px;font-size:18px}
+.pn h4{margin:10px 0 4px;font-size:15px;color:#c9c3ff}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #2f2a40}
+.row .l{flex:1}
+.btns{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.fl{position:fixed;pointer-events:none;font-weight:800;font-size:16px;text-shadow:0 0 4px #000;z-index:20;animation:fl 1s forwards}
+@keyframes fl{to{transform:translateY(-34px);opacity:0}}
+.lg{display:inline-block;min-width:22px;text-align:center;font-weight:800}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span class="g">❤ <b id="hpnum">15</b>/<span id="hpmax">15</span></span>
+    <span class="g">Lv<b id="lv">1</b> <span id="xpbar"><span id="xpfill" style="display:block"></span></span></span>
+    <span class="g">💰<b id="gold">0</b></span>
+    <span class="g" id="eq">🗡️—　🛡️—</span>
+  </div>
+  <div id="boardwrap"><div id="board"></div></div>
+  <div id="bar">
+    <button id="bBook">图鉴 / 规则</button>
+    <button id="bNew">重开</button>
+  </div>
+</div>
+
+<div class="ov" id="ovBook"><div class="pn" id="book"></div></div>
+<div class="ov" id="ovShop"><div class="pn" id="shop"></div></div>
+<div class="ov" id="ovEnd"><div class="pn" id="end"></div></div>
+<div class="ov" id="ovAsk"><div class="pn" id="ask"></div></div>
+
+<script>
+window.__BUILD='p1';
+let COLS=9,ROWS=7;const N=63;
+// 怪：一个形象一个战力（全局固定）
+const MON=[
+ {id:'rat',name:'灰鼠',e:'🐀',p:1,n:7},
+ {id:'bat',name:'蝙蝠',e:'🦇',p:2,n:6},
+ {id:'crab',name:'石蟹',e:'🦀',p:3,n:5},
+ {id:'wolf',name:'恶狼',e:'🐺',p:4,n:3},
+ {id:'zom',name:'僵尸',e:'🧟',p:5,n:2},
+];
+const BOSS={id:'boss',name:'眼镜王蛇（头目）',e:'🐍',p:22};
+// 宝藏：一个形象一个数字（全局固定，按好坏排序），实际收益见 eff
+const TRE=[
+ {id:'bagS',name:'小钱袋',e:'👛',v:1,n:5,eff:'开出 1～3 枚金币'},
+ {id:'pot',name:'血瓶',e:'🧪',v:2,n:4,eff:'留在地上，点一下回 3 血（满血时不能喝）'},
+ {id:'bagL',name:'大钱袋',e:'💰',v:3,n:3,eff:'开出 4～8 枚金币'},
+ {id:'sw1',name:'铁剑',e:'🗡️',v:4,n:1,eff:'装备：战力 ≤2 的怪打你不扣血'},
+ {id:'sh1',name:'木盾',e:'🛡️',v:5,n:1,eff:'装备：每仗少扣 1 血'},
+];
+const MERCHANT={id:'shop',name:'商人',e:'🧙',v:0};
+const GEAR={
+ sw1:{slot:'sw',name:'铁剑',kill:2,price:8},
+ sw2:{slot:'sw',name:'钢剑',kill:3,price:18},
+ sh1:{slot:'sh',name:'木盾',block:1,price:10},
+ sh2:{slot:'sh',name:'铁盾',block:2,price:20},
+};
+const XPNEED=[4,6,8,10,12,14,16,18,20];
+let mode='A';
+try{mode=localStorage.getItem('dt_mode')||'A'}catch(e){}
+let S;
+
+function rnd(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function nb(i){const x=i%COLS,y=(i/COLS)|0,r=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<COLS&&ny<ROWS)r.push(ny*COLS+nx)}return r}
+
+function newGame(){
+  const port=window.innerHeight>window.innerWidth;COLS=port?7:9;ROWS=port?9:7;
+  const b0=document.getElementById('board');b0.innerHTML='';layout();
+  const cells=[];for(let i=0;i<N;i++)cells.push({o:null,rev:false,done:false,mk:0,ch:['m','t','x'][rnd(0,2)]});
+  const bx=(COLS-1)/2,by=(ROWS-1)/2,bossI=by*COLS+bx;
+  cells[bossI].o={k:'mon',...BOSS,boss:true};cells[bossI].rev=true;
+  // 起点：离头目 ≥2 格，3×3 留空
+  let st;do{st=rnd(0,N-1)}while(Math.max(Math.abs(st%COLS-bx),Math.abs(((st/COLS)|0)-by))<3);
+  const reserved=new Set([st,...nb(st),bossI]);
+  const free=[];for(let i=0;i<N;i++)if(!reserved.has(i))free.push(i);
+  for(let i=free.length-1;i>0;i--){const j=rnd(0,i);[free[i],free[j]]=[free[j],free[i]]}
+  let k=0;
+  cells[free[k++]].o={k:'shop',...MERCHANT};
+  for(const m of MON)for(let c=0;c<m.n;c++)cells[free[k++]].o={k:'mon',...m};
+  for(const t of TRE)for(let c=0;c<t.n;c++)cells[free[k++]].o={k:'tre',...t};
+  S={cells,hp:15,max:15,lv:1,xp:0,gold:0,sw:null,sh:null,bag:[],over:false,won:false,t0:Date.now(),bought:{},kills:0};
+  reveal(st);
+  render();
+}
+function val(o){if(!o)return 0;return o.k==='mon'?o.p:(o.v||0)}
+function hiddenInfo(i){let m=0,t=0;for(const j of nb(i)){const c=S.cells[j];if(c.rev||!c.o)continue;if(c.o.k==='mon')m+=c.o.p;else if(c.o.k==='tre')t+=c.o.v}return{m,t}}
+function reveal(i){
+  const q=[i];
+  while(q.length){const j=q.pop();const c=S.cells[j];if(c.rev)continue;c.rev=true;
+    if(!c.o||c.o.k==='shop'){if(!c.o){const h=hiddenInfo(j);if(h.m+h.t===0)for(const n of nb(j))if(!S.cells[n].rev&&(!S.cells[n].o||S.cells[n].o.k==='shop'))q.push(n)}}
+  }
+}
+function dmgOf(p){if(S.sw&&p<=GEAR[S.sw].kill)return 0;return Math.max(0,p-(S.sh?GEAR[S.sh].block:0))}
+function cellEl(i){return document.getElementById('c'+i)}
+function float(i,txt,col){const r=cellEl(i).getBoundingClientRect();const d=document.createElement('div');d.className='fl';d.textContent=txt;d.style.color=col||'#fff';d.style.left=(r.left+r.width/2-30)+'px';d.style.top=(r.top)+'px';d.style.width='60px';d.style.textAlign='center';document.body.appendChild(d);setTimeout(()=>d.remove(),1000)}
+function shake(i){const e=cellEl(i);e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake')}
+
+function fight(i){
+  const c=S.cells[i],o=c.o,d=dmgOf(o.p);
+  S.hp-=d;float(i,d?'-'+d+'❤':'无伤',d?'#ff6b6b':'#8f8');
+  if(S.hp<=0){S.hp=0;die();return}
+  c.done=true;S.kills++;
+  if(o.boss){S.won=true;render();setTimeout(win,400)}
+  gainXp(o.p,i);
+  if(!o.boss)c.o=null;
+}
+function gainXp(x,i){S.xp+=x;while(S.lv-1<XPNEED.length?S.xp>=XPNEED[S.lv-1]:false){S.xp-=XPNEED[S.lv-1];S.lv++;S.max+=3;S.hp=Math.min(S.max,S.hp+3);setTimeout(()=>float(i,'升级！上限+3','#5fb3ff'),350)}}
+function giveGear(id,i){const g=GEAR[id];if(!S[g.slot]){S[g.slot]=id;if(i!=null)float(i,'装上 '+g.name,'#ffc53d')}else{S.bag.push(id);if(i!=null)float(i,g.name+' 进背包','#ffc53d')}}
+
+function tap(i){
+  if(S.over)return;
+  const c=S.cells[i];
+  if(!c.rev){
+    if(c.mk){c.mk=0}
+    reveal(i);
+    if(c.o&&c.o.k==='mon'){fight(i)}
+    else if(c.o&&c.o.k==='tre'){
+      const o=c.o;
+      if(o.id==='bagS'||o.id==='bagL'){const g=o.id==='bagS'?rnd(1,3):rnd(4,8);S.gold+=g;float(i,'+'+g+'💰','#ffc53d');c.o=null}
+      else if(o.id==='sw1'||o.id==='sh1'){giveGear(o.id,i);c.o=null}
+      // 血瓶留在地上
+    }
+    render();return;
+  }
+  if(!c.o)return;
+  if(c.o.k==='tre'&&c.o.id==='pot'){
+    if(S.hp>=S.max){shake(i);return}
+    S.hp=Math.min(S.max,S.hp+3);float(i,'+3❤','#8f8');c.o=null;render();return;
+  }
+  if(c.o.k==='shop'){openShop();return}
+  if(c.o.k==='mon'&&!c.done){
+    const d=dmgOf(c.o.p);
+    if(d>=S.hp){askConfirm('打这只会扣 '+d+' 血，你只剩 '+S.hp+' 血，会死。确定要打？',()=>{fight(i);render()});return}
+    fight(i);render();
+  }
+}
+function mark(i){const c=S.cells[i];if(c.rev||S.over)return;c.mk=(c.mk+1)%4;render()}
+
+function render(){
+  const b=document.getElementById('board');
+  if(!b.children.length){b.style.gridTemplateColumns=`repeat(${COLS},var(--cs))`;
+    for(let i=0;i<N;i++){const d=document.createElement('div');d.className='c';d.id='c'+i;b.appendChild(d);bindCell(d,i)}}
+  for(let i=0;i<N;i++){
+    const c=S.cells[i],d=cellEl(i);let cls='c',h='';
+    if(c.rev){cls+=' r';
+      if(c.o){
+        if(c.o.k==='mon'){h=`<span class="e">${c.o.e}</span>`;if(c.o.boss)cls+=' boss';if(c.done)cls+=' dead';else{const dm=dmgOf(c.o.p);h+=`<span class="dmg${dm>=S.hp?' die':''}">-${dm}❤</span>`}}
+        else h=`<span class="e">${c.o.e}</span>`;
+      }else{
+        const hi=hiddenInfo(i);let n=0,cc='';
+        if(mode==='A'){n=hi.m+hi.t;cc=hi.m&&hi.t?'x':hi.m?'m':hi.t?'t':''}
+        else{cc=c.ch;n=cc==='m'?hi.m:cc==='t'?hi.t:hi.m+hi.t;if(cc==='x'&&n===0)cc=''}
+        if(n>0||(mode==='B'&&cc)){cls+=' c'+cc;h=`<span class="n">${n}</span><span class="ic">${cc==='m'?'⚔':cc==='t'?'◆':'⚔◆'}</span>`}
+      }
+    }else if(c.mk){h=`<span class="mk ${['','m','t','q'][c.mk]}">${['','✕','◆','?'][c.mk]}</span>`}
+    if(d.className!==cls)d.className=cls;if(d.innerHTML!==h)d.innerHTML=h;
+  }
+  document.getElementById('hpnum').textContent=S.hp;document.getElementById('hpnum').className=S.hp<=5?'low':'';
+  document.getElementById('hpmax').textContent=S.max;
+  document.getElementById('lv').textContent=S.lv;
+  const need=XPNEED[S.lv-1]||1;document.getElementById('xpfill').style.width=(S.lv-1<XPNEED.length?Math.min(100,S.xp/need*100):100)+'%';
+  document.getElementById('gold').textContent=S.gold;
+  document.getElementById('eq').textContent='🗡️'+(S.sw?GEAR[S.sw].name:'—')+'　🛡️'+(S.sh?GEAR[S.sh].name:'—')+(S.bag.length?'　🎒'+S.bag.length:'');
+}
+function bindCell(d,i){
+  let t=null,lp=false;
+  d.addEventListener('pointerdown',e=>{if(e.button===2)return;lp=false;t=setTimeout(()=>{lp=true;mark(i)},380)});
+  const clr=()=>{clearTimeout(t);t=null};
+  d.addEventListener('pointerup',e=>{if(e.button===2)return;const was=t;clr();if(!lp&&was)tap(i)});
+  d.addEventListener('pointerleave',clr);d.addEventListener('pointercancel',clr);
+  d.addEventListener('contextmenu',e=>{e.preventDefault();clr();mark(i)});
+}
+function layout(){
+  const hud=document.getElementById('hud').offsetHeight,bar=document.getElementById('bar').offsetHeight;
+  const W=Math.min(window.innerWidth-16,560),H=window.innerHeight-hud-bar-30;
+  const cs=Math.floor(Math.min((W-3*(COLS-1))/COLS,(H-3*(ROWS-1))/ROWS,72));
+  document.documentElement.style.setProperty('--cs',cs+'px');
+}
+function die(){S.over=true;for(const c of S.cells)c.rev=true;render();
+  endPanel('倒下了',`走了 ${Math.round((Date.now()-S.t0)/1000)} 秒 · 打倒 ${S.kills} 只怪 · 攒了 ${S.gold} 金币`,false)}
+function win(){endPanel('打倒头目，通关！',`剩 ${S.hp} 血 · Lv${S.lv} · ${S.gold} 金币 · 用时 ${Math.round((Date.now()-S.t0)/1000)} 秒`,true)}
+function endPanel(t,s,canGo){
+  document.getElementById('end').innerHTML=`<h3>${t}</h3><div>${s}</div><div class="btns">${canGo?'<button id="eGo">继续探索</button>':''}<button class="pri" id="eNew">再来一局</button></div>`;
+  open('ovEnd');
+  document.getElementById('eNew').onclick=()=>{close('ovEnd');newGame()};
+  if(canGo)document.getElementById('eGo').onclick=()=>close('ovEnd');
+}
+function askConfirm(msg,yes){document.getElementById('ask').innerHTML=`<div>${msg}</div><div class="btns"><button id="aNo">不打</button><button class="pri" id="aYes">打</button></div>`;open('ovAsk');
+  document.getElementById('aNo').onclick=()=>close('ovAsk');document.getElementById('aYes').onclick=()=>{close('ovAsk');yes()}}
+function open(id){document.getElementById(id).classList.add('on')}
+function close(id){document.getElementById(id).classList.remove('on')}
+
+function openShop(){renderShop();open('ovShop')}
+function renderShop(){
+  let h=`<h3>🧙 商人</h3><div>你有 <b>${S.gold}</b> 金币　❤ ${S.hp}/${S.max}</div><h4>买</h4>`;
+  const goods=[['sw1'],['sw2'],['sh1'],['sh2']];
+  for(const [id] of goods){const g=GEAR[id];const has=S.bought[id];
+    h+=`<div class="row"><span class="l">${g.slot==='sw'?'🗡️':'🛡️'} ${g.name}　<small>${g.kill?'战力 ≤'+g.kill+' 的怪不扣血':'每仗少扣 '+g.block+' 血'}</small></span><button data-buy="${id}" ${has||S.gold<g.price?'disabled':''}>${has?'已买':g.price+'💰'}</button></div>`}
+  h+=`<div class="row"><span class="l">🧪 血瓶　<small>当场回 3 血</small></span><button data-buy="pot" ${S.gold<3||S.hp>=S.max?'disabled':''}>3💰</button></div>`;
+  h+=`<h4>身上</h4>`;
+  for(const slot of ['sw','sh']){const id=S[slot];h+=`<div class="row"><span class="l">${slot==='sw'?'🗡️':'🛡️'} ${id?GEAR[id].name:'（空）'}</span>${id?`<button data-unq="${slot}">卸到背包</button>`:''}</div>`}
+  h+=`<h4>背包</h4>`;
+  if(!S.bag.length)h+='<div style="opacity:.6">（空）</div>';
+  S.bag.forEach((id,k)=>{const g=GEAR[id];h+=`<div class="row"><span class="l">${g.slot==='sw'?'🗡️':'🛡️'} ${g.name}</span><button data-eq="${k}">装上</button><button data-sell="${k}">卖 ${Math.floor(g.price/2)}💰</button></div>`});
+  h+=`<div class="btns"><button class="pri" id="sClose">离开</button></div>`;
+  const p=document.getElementById('shop');p.innerHTML=h;
+  p.querySelectorAll('[data-buy]').forEach(b=>b.onclick=()=>{const id=b.dataset.buy;if(id==='pot'){S.gold-=3;S.hp=Math.min(S.max,S.hp+3)}else{S.gold-=GEAR[id].price;S.bought[id]=1;giveGear(id,null)}renderShop();render()});
+  p.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{const k=+b.dataset.eq,id=S.bag[k],sl=GEAR[id].slot;S.bag.splice(k,1);if(S[sl])S.bag.push(S[sl]);S[sl]=id;renderShop();render()});
+  p.querySelectorAll('[data-sell]').forEach(b=>b.onclick=()=>{const k=+b.dataset.sell;S.gold+=Math.floor(GEAR[S.bag[k]].price/2);S.bag.splice(k,1);renderShop();render()});
+  p.querySelectorAll('[data-unq]').forEach(b=>b.onclick=()=>{const sl=b.dataset.unq;S.bag.push(S[sl]);S[sl]=null;renderShop();render()});
+  document.getElementById('sClose').onclick=()=>close('ovShop');
+}
+function openBook(){
+  let h=`<h3>图鉴 / 规则</h3>
+  <div>翻开格子：空地显示一个数字 = <b>周围 8 格里还没翻开的东西</b>加起来。怪算战力，宝藏算编号。</div>
+  <div style="margin-top:6px">${mode==='A'
+   ?'<span class="lg" style="color:#ff5a5f">红⚔</span> 周围只有怪　<span class="lg" style="color:#ffc53d">金◆</span> 周围只有宝藏　<span class="lg" style="color:#c084fc">紫⚔◆</span> 两种都有'
+   :'<span class="lg" style="color:#ff5a5f">红⚔</span> 只数怪（不管宝藏）　<span class="lg" style="color:#ffc53d">金◆</span> 只数宝藏（不管怪）　<span class="lg" style="color:#c084fc">紫⚔◆</span> 两种加起来'}</div>
+  <div style="margin-top:6px">点没翻开的格子：是怪就立刻开打（扣血 = 战力，装备可减），打赢拿经验；是宝藏就拿走。长按 / 右键 = 标记（✕ 怪、◆ 宝、?）。打倒中间的头目就通关。血不会自动回满：升级只加 3 上限、回 3 血。</div>
+  <h4>怪（战力 = 扣血 = 经验）</h4>`;
+  for(const m of MON)h+=`<div class="row"><span class="l">${m.e} ${m.name}</span><span>战力 <b>${m.p}</b> ×${m.n}</span></div>`;
+  h+=`<div class="row"><span class="l">${BOSS.e} ${BOSS.name}</span><span>战力 <b>${BOSS.p}</b></span></div><h4>宝藏（数字 = 编号）</h4>`;
+  for(const t of TRE)h+=`<div class="row"><span class="l">${t.e} ${t.name}　<small>${t.eff}</small></span><span><b>${t.v}</b> ×${t.n}</span></div>`;
+  h+=`<div class="row"><span class="l">${MERCHANT.e} 商人　<small>不算进数字；卖剑盾、血瓶，可以换装、卖背包里的装备</small></span><span>×1</span></div>
+  <h4>数字颜色规则（试玩对比）</h4><div class="btns" style="margin-top:4px"><button id="mA" class="${mode==='A'?'pri':''}">A：颜色 = 周围有什么</button><button id="mB" class="${mode==='B'?'pri':''}">B：颜色随机，各数各的</button></div>
+  <div style="opacity:.6;font-size:12px;margin-top:6px">切换会重开一局 · 版本 ${window.__BUILD}</div>
+  <div class="btns"><button class="pri" id="bkClose">知道了</button></div>`;
+  document.getElementById('book').innerHTML=h;open('ovBook');
+  document.getElementById('bkClose').onclick=()=>close('ovBook');
+  document.getElementById('mA').onclick=()=>setMode('A');document.getElementById('mB').onclick=()=>setMode('B');
+}
+function setMode(m){mode=m;try{localStorage.setItem('dt_mode',m)}catch(e){}close('ovBook');newGame()}
+document.getElementById('bBook').onclick=openBook;
+document.getElementById('bNew').onclick=()=>newGame();
+window.addEventListener('resize',layout);
+layout();newGame();
+let seen=false;try{seen=localStorage.getItem('dt_seen')}catch(e){}
+if(!seen){openBook();try{localStorage.setItem('dt_seen','1')}catch(e){}}
+</script>
+</body>
+</html>
